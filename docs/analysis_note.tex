@@ -1,0 +1,94 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage[margin=2.5cm]{geometry}
+
+\title{Unfolding (Inverse Problems) with Uncertainty Propagation}
+\author{\textit{Project write-up}}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Motivation}
+This short report accompanies a small learning project on inverse problems.
+The goal is to estimate an underlying ``true'' binned distribution $x$ from a noisy, smeared observation $y$.
+A simplified model is
+\begin{equation}
+  y = R x + \epsilon,
+\end{equation}
+where $R$ is a response matrix encoding smearing and acceptance, and $\epsilon$ represents statistical noise (often close to Poisson counting noise).
+
+The inverse problem is typically ill-posed: small fluctuations in $y$ can cause large fluctuations in a naive inverse.
+This project explores how regularization stabilizes the solution and how uncertainties can be propagated and validated.
+
+\section{Regularized estimators}
+
+\subsection{Tikhonov unfolding}
+We estimate $x$ by minimizing a penalized least-squares objective,
+\begin{equation}
+  \hat{x}(\lambda) = \arg\min_x \left[ (y - Rx)^T W (y - Rx) + \lambda^2 \lVert L x \rVert^2 \right],
+\end{equation}
+with weight matrix $W \approx \mathrm{Cov}(y)^{-1}$ and a regularization operator $L$ (often a first- or second-difference matrix).
+This gives the linear system
+\begin{equation}
+  (R^T W R + \lambda^2 L^T L)\,\hat{x} = R^T W y.
+\end{equation}
+
+\subsection{Truncated SVD (TSVD)}
+Using $R = U S V^T$, the pseudo-inverse is $R^+ = V S^{-1} U^T$. Truncated SVD keeps only the first $k$ singular modes,
+reducing variance at the cost of bias.
+
+\section{Uncertainty propagation}
+For linear estimators $\hat{x} = G y$, covariance propagation is
+\begin{equation}
+  \mathrm{Cov}(\hat{x}) = G\,\mathrm{Cov}(y)\,G^T.
+\end{equation}
+In practice we often approximate $\mathrm{Cov}(y)$ by a diagonal Poisson form $\mathrm{diag}(\max(y_i, 1))$.
+
+\section{Validation with toy Monte Carlo}
+We validate coverage and stability by generating repeated pseudo-experiments $y^{(t)} \sim \mathrm{Pois}(R x_{\mathrm{true}})$,
+computing $\hat{x}^{(t)}$ and its propagated covariance, and studying pulls
+\begin{equation}
+  p_i = \frac{\hat{x}_i - x_{\mathrm{true},i}}{\sigma_i}, \quad \sigma_i^2 = \mathrm{Cov}(\hat{x})_{ii}.
+\end{equation}
+If the linearized covariance is reasonable, pull widths should be close to 1.
+
+\section{Results}
+Figures are produced by running the notebook \texttt{notebooks/demo\_unfolding.ipynb}, which saves plots into \texttt{docs/figures/}.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.70\linewidth]{figures/lcurve.png}
+  \caption{L-curve scan for Tikhonov unfolding (choose $\lambda$ near the corner).}
+\end{figure}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.95\linewidth]{figures/unfolded_vs_truth.png}
+  \caption{Example unfolded solution compared to truth and the observed reco spectrum.}
+\end{figure}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.95\linewidth]{figures/pulls.png}
+  \caption{Toy Monte Carlo pull mean and width for the chosen $\lambda$.}
+\end{figure}
+
+\section{Discussion}
+Regularization controls the bias--variance tradeoff.
+For this project, the most informative checks are:
+(i) how unstable a naive inverse can be,
+(ii) how stability changes as the regularization strength varies,
+(iii) whether propagated uncertainties are consistent with toy Monte Carlo (pull widths near 1),
+(iv) how sensitive conclusions are to the regularization choice.
+
+In future iterations, I would like to expand the study to include alternative parameter-choice rules (e.g. cross-validation variants),
+more realistic forward models (non-square responses, explicit efficiency), and systematic uncertainty propagation.
+
+\end{document}
