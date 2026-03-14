@@ -23,6 +23,7 @@ Concretely, I wanted to:
 	- truncated SVD (TSVD) unfolding
 	- covariance propagation utilities
 	- toy-MC validation helpers
+	- regularization scan helpers for Tikhonov tuning
 - `notebooks/demo_unfolding.ipynb`: a runnable demo scanning regularization strength and showing stability / bias–variance / pull behavior
 - `docs/analysis_note.tex`: a short write-up template (figures saved by the notebook)
 
@@ -47,6 +48,43 @@ Build the note (requires LaTeX):
 
 - `cd docs`
 - `latexmk -pdf analysis_note.tex`
+
+## Regularization tuning helper
+
+The library includes a small utility to scan a grid of Tikhonov strengths and select one using toy-MC quality metrics.
+The scan reports, for each regularization value:
+
+- mean absolute relative bias,
+- mean absolute pull mean,
+- mean absolute pull-width error,
+- a combined score (smaller is better).
+
+Example:
+
+```python
+import numpy as np
+
+from unfolding import (
+	build_response_matrix,
+	choose_best_regularization,
+	scan_tikhonov_regularization,
+)
+
+truth = np.array([40, 60, 90, 70, 45, 30], dtype=float)
+R = build_response_matrix(n_truth=truth.size, sigma=1.0, seed=7)
+regs = np.array([0.0, 0.1, 0.3, 0.8], dtype=float)
+
+scan = scan_tikhonov_regularization(
+	truth,
+	R,
+	regs,
+	n_toys=200,
+	rng=np.random.default_rng(11),
+)
+
+best_reg, best_idx = choose_best_regularization(scan)
+print(best_reg, scan["score"][best_idx])
+```
 
 ## Ideas for future work
 
